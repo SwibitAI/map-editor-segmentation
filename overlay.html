@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Map Overlay Viewer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
+  #map { width: 100vw; height: 100vh; }
+
+  #toolbar {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,20,20,.88); backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,.1);
+    color: #ddd; border-radius: 24px;
+    padding: 8px 16px; display: flex; align-items: center; gap: 14px;
+    z-index: 1000; white-space: nowrap; font-size: 13px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  }
+
+  #toolbar .title { font-weight: 600; color: #fff; letter-spacing: .02em; }
+  #toolbar .sep   { width: 1px; height: 20px; background: rgba(255,255,255,.15); }
+
+  .tog {
+    display: flex; align-items: center; gap: 7px; cursor: pointer;
+    user-select: none;
+  }
+  .tog input { display: none; }
+  .pill {
+    width: 36px; height: 20px; border-radius: 10px; background: #444;
+    position: relative; transition: background .2s;
+  }
+  .pill::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff;
+    transition: left .2s;
+  }
+  .tog input:checked + .pill { background: #4a90e2; }
+  .tog input:checked + .pill::after { left: 18px; }
+
+  .slider-wrap { display: flex; align-items: center; gap: 7px; }
+  .slider-wrap label { color: #aaa; font-size: 12px; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 90px; height: 4px; background: #444; border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: #4a90e2; cursor: pointer;
+  }
+
+  .file-btn {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+    color: #ccc; border-radius: 12px; padding: 4px 11px;
+    font-size: 12px; cursor: pointer; white-space: nowrap;
+    transition: background .15s;
+  }
+  .file-btn:hover { background: rgba(255,255,255,.15); }
+  .file-btn input { display: none; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="title">Map Viewer</span>
+  <div class="sep"></div>
+
+  <label class="tog" title="Toggle text labels">
+    <input type="checkbox" id="txt-chk" checked onchange="onToggle()">
+    <span class="pill"></span>
+    Text labels
+  </label>
+
+  <div class="slider-wrap">
+    <label>Opacity</label>
+    <input type="range" id="txt-opacity" min="0" max="100" value="100"
+           oninput="onOpacity(this.value)" title="Text layer opacity">
+  </div>
+
+  <div class="sep"></div>
+
+  <label class="file-btn" title="Load a different base map (PNG/JPG)">
+    🖼 Base
+    <input type="file" accept="image/*" onchange="loadBase(event)">
+  </label>
+
+  <label class="file-btn" title="Load a different text overlay (PNG with transparency)">
+    🔤 Text
+    <input type="file" accept="image/*" onchange="loadText(event)">
+  </label>
+</div>
+
+<div id="map"></div>
+
+<script>
+const IMG_W = 7021, IMG_H = 4967;
+const BOUNDS = [[0, 0], [IMG_H, IMG_W]];
+
+const map = L.map('map', {
+  crs: L.CRS.Simple,
+  minZoom: -4,
+  maxZoom:  4,
+  zoomSnap: 0.25,
+});
+
+const baseLayer = L.imageOverlay('teebat/image.png',      BOUNDS, { interactive: false }).addTo(map);
+const textLayer = L.imageOverlay('teebat/image_text_only.png', BOUNDS, { interactive: false }).addTo(map);
+
+map.fitBounds(BOUNDS, { padding: [20, 20] });
+
+function onToggle() {
+  const on  = document.getElementById('txt-chk').checked;
+  const val = document.getElementById('txt-opacity').value / 100;
+  textLayer.setOpacity(on ? val : 0);
+}
+
+function onOpacity(val) {
+  if (document.getElementById('txt-chk').checked)
+    textLayer.setOpacity(val / 100);
+}
+
+function loadBase(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = () => {
+    const b = [[0, 0], [img.naturalHeight, img.naturalWidth]];
+    baseLayer.setUrl(url);
+    baseLayer.setBounds(b);
+    textLayer.setBounds(b);
+    map.fitBounds(b, { padding: [20, 20] });
+  };
+  img.src = url;
+  e.target.value = '';
+}
+
+function loadText(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  textLayer.setUrl(URL.createObjectURL(f));
+  e.target.value = '';
+}
+</script>
+</body>
+</html>
